@@ -11,7 +11,6 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
-    container_name: es01
     environment:
       - node.name=es01
       - discovery.type=single-node
@@ -58,10 +57,9 @@ services:
   
   elastic_mcp:
     image: docker.elastic.co/mcp/elasticsearch:0.4.0
-    container_name: elastic-mcp
     environment:
       - ES_URL=http://elasticsearch:9200
-      - ES_API_KEY=MjNSVFE1d0I2dC1SWWU2V0hxZ0I6WnJSLU9VSVRUc2V4cUNXSEJrZUx0UQ==    #ENCODED_KEY
+      - ES_API_KEY=MDd2SlJwd0JNdk1HRHZJdXE3M0M6VFZ1ZkhQdFNSNnlWdnpOXzRXeXNfZw==   #your api key here
     ports:
       - "8080:8080"
     depends_on:

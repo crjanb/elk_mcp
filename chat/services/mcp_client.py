@@ -1,5 +1,6 @@
 import json
 import requests
+from typing import Any
 
 from chat.config import MCP_URL
 from chat.tools.normalize import normalize_mcp_tools
@@ -65,28 +66,41 @@ class MCPClient:
         raw_tools = self.fetch_tools_raw()
         return normalize_mcp_tools(raw_tools)
 
-    # Optional: keep your ES|QL caller (not used by current CLI flow)
-    def call_esql(self, query: str) -> str | None:
+    def call_tool(self, name: str, arguments: dict, timeout: int = 60) -> dict:
+        """
+        Call ANY MCP tool by name with arguments.
+        Returns the full MCP JSON response dict for the first SSE 'data:' event.
+        """
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "tools/call",
             "params": {
-                "name": "esql",
-                "arguments": {"query": query},
+                "name": name,
+                "arguments": arguments or {},
             },
         }
+        return self._post_sse_first_data(payload, timeout=timeout)
 
-        data = self._post_sse_first_data(payload, timeout=60)
-
-        # Your original implementation expected:
-        # data["result"]["content"][-1]["text"]
-        # We preserve that shape expectation.
-        if "result" in data:
-            content = data["result"].get("content") or []
-            if content and isinstance(content, list):
+    @staticmethod
+    def extract_human_text(tool_response: dict) -> str:
+        """
+        Best-effort extraction of readable text from MCP response.
+        Your current MCP returns: result.content[-1].text for esql.
+        We try that first, then fallback to JSON.
+        """
+        try:
+            result = tool_response.get("result", {})
+            content = result.get("content")
+            if isinstance(content, list) and content:
                 last = content[-1]
-                if isinstance(last, dict) and "text" in last:
-                    return last["text"]
-
-        return None
+                if isinstance(last, dict):
+                    if "text" in last and isinstance(last["text"], str):
+                        return last["text"]
+                    # some MCP servers use "content": [{"type":"text","text":"..."}]
+                    if last.get("type") == "text" and "text" in last:
+                        return str(last["text"])
+            # fallback to stringify the result
+            return json.dumps(result, indent=2, ensure_ascii=False)
+        except Exception:
+            return json.dumps(tool_response, indent=2, ensure_ascii=False)
