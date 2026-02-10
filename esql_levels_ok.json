@@ -1,1 +1,0 @@
-{"query":"FROM logs-dummy-backend* | STATS count() BY `log.level` | SORT count() DESC"}
